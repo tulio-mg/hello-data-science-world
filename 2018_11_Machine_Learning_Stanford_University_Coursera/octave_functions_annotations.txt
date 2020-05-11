@@ -1,0 +1,49 @@
+Octave functions:
+
+Basic Operations
+rand()
+hist()
+
+Moving Data Around
+pwd
+cd
+ls
+load
+who - whos
+size()
+lenght()
+clear
+
+Computing on Data
+help()
+find()
+magic()
+sum()
+prod()
+floor()
+ceil()
+rand()
+max()
+min()
+eye()
+pinv()
+
+Plotting Data
+plot()
+hold on
+legend()
+title()
+print dpng '.png'
+close
+figure()
+subplot
+axis
+clf
+imagesc, colobar, colormap gray
+
+Control Statements
+for i = ... end
+indices
+while
+if elseif else
+disp('')
