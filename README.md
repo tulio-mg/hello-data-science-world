@@ -1,5 +1,5 @@
 # hello-data-science-world
-From July 2017 till now, constantly developing skills to explore the exciting data science world. 
+From July 2017 till now, constantly developing skills to explore the exciting world of data science. 
 
 ## Courses:
 
