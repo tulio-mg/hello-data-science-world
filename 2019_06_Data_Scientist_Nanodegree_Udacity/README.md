@@ -7,6 +7,9 @@
 
 ## Part 1: Introduction
 ## Part 2: Supervised Learning
+### Project: Finding Donors for CharityML
+You've covered a wide variety of methods for performing supervised learning -- now it's time to put those into
+action!
 ### Lesson Summary
 #### Linear Regression: 
 Linear regression is a very effective algorithm to predict
@@ -30,7 +33,43 @@ improving the accuracy of supervised learning approaches.
 Test your Supervised Learning concepts with a quick
 assessment.
 ## Part 3: Unsupervised Learning
+### Project: Creating Customer Segments
+Now that you've learned a lot about unsupervised learning, it's time to apply that to a project.
+### Lesson Summary
+#### Clustering
+Clustering is one of the most common methods of
+unsupervised learning. Here, we'll discuss the K-means clustering algorithm.
+#### Clustering Mini-Project
+In this mini-project, you will use K-means to cluster movie
+ratings and use those clusters to provide movie
+recommendations.
+#### Hierarchical and Density-based Clustering
+We continue to look at clustering methods. Here, we'll discuss
+hierarchical clustering and density-based clustering (DBSCAN).
+#### Gaussian Mixture Models and Cluster
+Validation
+In this lesson, we discuss Gaussian mixture model clustering.
+We then talk about the cluster analysis process and how to
+validate clustering results.
+#### Feature Scaling
+Feature scaling is an important pre-processing step when
+performing unsupervised learning to allow multiple features to
+be analyzed together.
+#### PCA
+PCA, principal component analysis, is a method for feature
+selection that turns a set of correlated variables into the
+underlying set of orthogonal variables.
+#### PCA Mini-Project
+In this mini-project, you'll apply principal component analysis
+to facial recognition.
+#### Random Projection and ICA
+In this lesson, we will look at two methods for feature
+extraction and dimensionality reduction: Random Projection
+and Independent Component Analysis (ICA)
+#### Unsupervised Learning Assessment
+Test your understanding of unsupervised learning with a quick
+assessment.
 ## Part 4: Big Data & Map Reduce
-## Project: Explore and Summarize Data
+### Project: Explore and Summarize Data
 Choose one of Udacity's curated datasets or find one of your own and perform a complete exploratory data
 analysis on the data using R.
