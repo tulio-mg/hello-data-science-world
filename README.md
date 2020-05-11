@@ -14,3 +14,15 @@ From July 2017 till now, constantly developing skills to explore the exciting da
 ##### Site: www.datascienceacademy.com.br
 ##### Credential URL: https://goo.gl/18MNma
 ##### Date of conclusion: 24th of November 2018
+
+### Data Scientist Nanodegree
+##### Organization: Udacity
+##### Site: https://www.udacity.com/
+##### Credential URL: confirm.udacity.com/QMP42L2A
+##### Date of conclusion: 11th of June 2019
+
+### Data Scientist with Python track (on Progress)
+##### Organization: DataCamp
+##### Site: https:/www.datacamp.com
+##### Credential URL: on Progress
+##### Date of conclusion: on Progress
