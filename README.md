@@ -1,2 +1,2 @@
 # hello-data-science-world
-courses, codes, projects, articles, readings...
+articles and readings about data science.
