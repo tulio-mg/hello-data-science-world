@@ -1,0 +1,1366 @@
+---
+title: "EDA_project"
+author: "Túlio Goulart"
+date: "09/06/2019"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+Análise de qualidade de vinhos brancos por Túlio Migotto Goulart
+========================================================
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=FALSE, message=FALSE, warning=FALSE)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# Carregue aqui todos os pacotes utilizados 
+# na sua análise realizada neste arquivo fonte.
+options(repos = c(CRAN = "http://cran.rstudio.com"))
+
+library(ggplot2)
+library(dplyr)
+library(grid)
+library(gridExtra)
+library(GGally)
+library(memisc)
+library(BBmisc)
+library(e1071)
+library(caTools) 
+library(kableExtra)
+library(MLmetrics)
+library(ggfortify)
+
+```
+
+```{r echo=FALSE, Load_the_Data}
+# Carregamento dos dados
+#setwd('C:/Users/Tulio/Documents/Cursos/Udacity/Nanodegree_Data_Scientist/EDA_Final_Project_2')
+setwd('C:/Users/tmg2/Desktop/Nanodegree_Data_Scientist/04_EDA')
+
+df <- read.csv('wineQualityWhites.csv', sep = ',')
+
+#Criando Dataframe que terá transformações e será normalizado, a fim de obter melhores resultados na modelagem
+df_normalize <- df
+
+```
+
+Este relatório explora um conjunto de dados contendo 4898 vinhos brancos com 11 atributos de propriedades químicas do vinho. Três especialistas em vinhos avaliaram cada amostra, fornecendo uma nota entre 0 (muito ruim) e 10 (muito excelente). A mediana entre as notas para cada amostra foi considerada.
+
+# Seção de Gráficos Univariados
+### Analisando dataset
+```{r echo=FALSE, Univariate_Plots}
+#Criando variável quality.factor
+df$quality.factor <- factor(df$quality, ordered = TRUE, levels = seq(3,9,1))
+
+#Analisando tipos de variáveis e resumo das métricas no Dataframe
+str(df)
+summary(df)
+
+#Criando Dataframe com resumo de informações da variável quality.factor
+summ_quality.factor <- df %>% group_by(quality.factor) %>% 
+  summarise(n = n())
+```
+
+### Analisando variável quality
+```{r echo=FALSE, quality}
+#Plotando histograma da variável quality
+ggplot(aes(x = quality), data = df) + 
+  geom_histogram(binwidth = 1) +
+  scale_x_continuous(limits = c(0,10), breaks = seq(0,10,1))+
+  scale_y_continuous(breaks = seq(0,2500,500))+
+  ylab('Contagem')+
+  xlab('quality')
+
+show(summ_quality.factor)
+
+```
+
+Há 4898 observações com 14 variáveis (considerando variável criada quality.factor) e nenhum valor faltante. Todas as variáveis de input são do tipo numérico e a variável output (qualidade) é categórica. Por isso, criou-se a variável quality.factor para representar um fator com ordem crescente. Percebe-se que apenas 5 vinhos obtiveram nota 9 (0,18%), 175 nota 8 (3,57%) e 880 nota 7 (17,97%), sendo que a maioria recebeu nota 6, 2198 observações (44,87%), seguida da nota 5 com 1457 (29,75%) observações, e por fim, 183 (3,74%) obtiveram notas baixas, 163 notas 4 (3,33%), 20 notas 3 (0,41%) e não há ocorrências das notas 0, 1, 2 e 10.
+
+### Analisando atributo fixed.acidity
+```{r echo=FALSE, fixed.acidity}
+#Resumo da variável fixed.acidity
+summary(df$fixed.acidity)
+
+#Calculando quantidade de outliers
+length(subset(df$fixed.acidity, df$fixed.acidity < quantile(df$fixed.acidity, 0.25) - 1.5*IQR(df$fixed.acidity))) + 
+length(subset(df$fixed.acidity, df$fixed.acidity > quantile(df$fixed.acidity, 0.75) + 1.5*IQR(df$fixed.acidity)))
+
+#Plotando histograma da variável fixed.acidity
+ggplot(aes(x = fixed.acidity), data = df) + 
+  geom_histogram(binwidth = .1) +
+  scale_x_continuous(limits = c(3.8,14.2), breaks = seq(3,15,1))+
+  scale_y_continuous()+
+  ylab('Contagem')+
+  xlab('fixed.acidity')
+
+```
+
+Observa-se uma distribuição normal dos dados, tendo média e mediana com valores próximos, 6,855 e 6,800, respectivamente. Ainda, nota-se a presença de 119 outliers.
+
+### Analisando atributo volatile.acidity
+```{r, volatile.acidity}
+#Resumo da variável volatile.acidity
+summary(df$volatile.acidity)
+
+#Calculando quantidade de outliers
+length(subset(df$volatile.acidity, df$volatile.acidity < quantile(df$volatile.acidity, 0.25) - 1.5*IQR(df$volatile.acidity))) + 
+length(subset(df$volatile.acidity, df$volatile.acidity > quantile(df$volatile.acidity, 0.75) + 1.5*IQR(df$volatile.acidity)))
+
+#Calculando quantidade de outliers com transformação logarítmica (base 10) dos dados
+length(subset(log10(df$volatile.acidity), log10(df$volatile.acidity) < quantile(log10(df$volatile.acidity), 0.25) - 1.5*IQR(log10(df$volatile.acidity)))) + 
+length(subset(log10(df$volatile.acidity), log10(df$volatile.acidity) > quantile(log10(df$volatile.acidity), 0.75) + 1.5*IQR(log10(df$volatile.acidity))))
+
+#Plotando histograma da variável volatile.acidity
+ggplot(aes(x = volatile.acidity), data = df) + 
+  geom_histogram(binwidth = .01) +
+  scale_x_continuous(limits = c(0,1.2), breaks = seq(0,1.2,.1))+
+  scale_y_continuous(limits = c(0,275), breaks = seq(0,270,50))+
+  ylab('Contagem')+
+  xlab('Volatile.acidity')
+
+#Plotando histograma da variável volatile.acidity em escala logarítmica (base 10)
+ggplot(aes(x = volatile.acidity), data = df) + 
+  geom_histogram(binwidth = .05) +
+  scale_x_log10()+
+  ylab('Contagem')+
+  xlab('log10(Volatile.acidity)')
+
+#Transformando variável em escala logarítmica em df_normalize
+df_normalize$volatile.acidity <- log10(df_normalize$volatile.acidity)
+
+
+```
+
+Observa-se uma distribuição não normal (positively skewed) dos dados, com formato de cauda longa, estando os dados concentrados a esquerda do eixo das abcissas. Logo, foi realizado uma transformação logarítmica (base 10) para obter uma distribuição normal, verificada no segundo histograma. Ainda, nota-se a presença de 186 outliers sem transformação logarítmica e 97 com transformação logarítmica.
+
+### Analisando atributo citric.acid
+```{r, citric.acid}
+#Resumo da variável citric.acid
+summary(df$citric.acid)
+
+#Calculando quantidade de outliers
+length(subset(df$citric.acid, df$citric.acid < quantile(df$citric.acid, 0.25) - 1.5*IQR(df$citric.acid))) + 
+length(subset(df$citric.acid, df$citric.acid > quantile(df$citric.acid, 0.75) + 1.5*IQR(df$citric.acid)))
+
+#Plotando histograma da variável citric.acid
+ggplot(aes(x = citric.acid), data = df) + 
+  geom_histogram(binwidth = .01) +
+  scale_x_continuous(limits = c(0,1.7), breaks = seq(0,1.7,0.1))+
+  scale_y_continuous(breaks = seq(0,350,50))+
+  coord_cartesian(xlim = c(0,1))+
+  ylab('Contagem')+
+  xlab('citric.acid')
+
+```
+
+Observa-se uma distribuição normal dos dados, tendo média e mediana com valores próximos, 0,3342 e 0,3200, respectivamente. Ainda, nota-se a presença de 270 outliers. 
+
+### Analisando atributo residual.sugar
+```{r, residual.sugar}
+
+#Resumo da variável residual.sugar
+summary(df$residual.sugar)
+
+#Calculando quantidade de outliers
+length(subset(df$residual.sugar, df$residual.sugar < quantile(df$residual.sugar, 0.25) - 1.5*IQR(df$residual.sugar))) + 
+length(subset(df$residual.sugar, df$residual.sugar > quantile(df$residual.sugar, 0.75) + 1.5*IQR(df$residual.sugar)))
+
+#Calculando quantidade de outliers com transformação logarítmica (base 10) dos dados
+length(subset(log10(df$residual.sugar), log10(df$residual.sugar) < quantile(log10(df$residual.sugar), 0.25) - 1.5*IQR(log10(df$residual.sugar)))) + 
+length(subset(log10(df$residual.sugar), log10(df$residual.sugar) > quantile(log10(df$residual.sugar), 0.75) + 1.5*IQR(log10(df$residual.sugar))))
+
+#Plotando histograma da variável residual.sugar
+ggplot(aes(x = residual.sugar), data = df) + 
+  geom_histogram(binwidth = .1) +
+  scale_x_continuous(limits = c(0,30), breaks = seq(0,30,5))+
+  scale_y_continuous(breaks = seq(0,200,50))+
+  ylab('Contagem')+
+  xlab('residual.sugar')
+
+#Plotando histograma da variável residual.sugar em escala logarítmica (base 10)
+ggplot(aes(x = residual.sugar), data = df) + 
+  geom_histogram(binwidth = .05) +
+  scale_x_log10()+
+  ylab('Contagem')+
+  xlab('log10(residual.sugar)')
+
+
+#Transformando variável em escala logarítmica em df_normalize
+df_normalize$residual.sugar <- log10(df_normalize$residual.sugar)
+
+```
+
+Observa-se uma distribuição não normal (positively skewed) dos dados, com formato de cauda longa, estando os dados concentrados a esquerda do eixo das abcissas. Logo, foi realizado uma transformação logarítmica (base 10) para obter uma distribuição normal, verificada no segundo histograma. Ainda, nota-se a presença de apenas 7 outliers sem transformação logarítmica e nenhum com transformação logarítmica. 
+
+### Analisando atributo chlorides
+```{r, chlorides}
+
+#Resumo da variável chlorides
+summary(df$chlorides)
+
+#Calculando quantidade de outliers
+length(subset(df$chlorides, df$chlorides < quantile(df$chlorides, 0.25) - 1.5*IQR(df$chlorides))) + 
+length(subset(df$chlorides, df$chlorides > quantile(df$chlorides, 0.75) + 1.5*IQR(df$chlorides)))
+
+#Calculando quantidade de outliers com transformação logarítmica (base 10) dos dados
+length(subset(log10(df$chlorides), log10(df$chlorides) < quantile(log10(df$chlorides), 0.25) - 1.5*IQR(log10(df$chlorides)))) + 
+length(subset(log10(df$chlorides), log10(df$chlorides) > quantile(log10(df$chlorides), 0.75) + 1.5*IQR(log10(df$chlorides))))
+
+#Plotando histograma da variável chlorides
+ggplot(aes(x = chlorides), data = df) + 
+  geom_histogram(binwidth = .001)+
+  ylab('Contagem')+
+  xlab('chlorides')
+
+#Plotando histograma da variável chlorides em escala logarítmica (base 10)
+ggplot(aes(x = chlorides), data = df) + 
+  geom_histogram(binwidth = .05) +
+  scale_x_log10()+
+  ylab('Contagem')+
+  xlab('log10(chlorides)')
+
+#Transformando variável em escala logarítmica em df_normalize
+df_normalize$chlorides <- log10(df_normalize$chlorides)
+
+```
+
+Observa-se uma distribuição não normal (positively skewed) dos dados, com formato de cauda longa, estando os dados concentrados a esquerda do eixo das abcissas. Logo, foi realizado uma transformação logarítmica (base 10) para obter uma distribuição normal, verificada no segundo histograma. Ainda, nota-se a presença de 208 outliers sem transformação logarítmica e 237 com transformação logarítmica.
+
+### Analisando atributo free.sulfur.dioxide
+```{r, free.sulfur.dioxide}
+#Resumo da variável free.sulfur.dioxide
+summary(df$free.sulfur.dioxide)
+
+#Calculando quantidade de outliers
+length(subset(df$free.sulfur.dioxide, df$free.sulfur.dioxide < quantile(df$free.sulfur.dioxide, 0.25) - 1.5*IQR(df$free.sulfur.dioxide))) + 
+length(subset(df$free.sulfur.dioxide, df$free.sulfur.dioxide > quantile(df$free.sulfur.dioxide, 0.75) + 1.5*IQR(df$free.sulfur.dioxide)))
+
+#Plotando histograma da variável free.sulfur.dioxide
+ggplot(aes(x = free.sulfur.dioxide), data = df) + 
+  geom_histogram(binwidth = 1) +
+  scale_x_continuous(limits = c(0,289), breaks = seq(0,289,10))+
+  coord_cartesian(xlim = c(0,90))+
+  ylab('Contagem')+
+  xlab('free.sulfur.dioxide')
+
+```
+
+Observa-se uma distribuição normal dos dados, tendo média e mediana com valores próximos, 35,31 e 34,00, respectivamente. Ainda, nota-se a presença de 50 outliers.
+
+
+### Analisando atributo total.sulfur.dioxide
+```{r, total.sulfur.dioxide}
+
+#Resumo da variável total.sulfur.dioxide
+summary(df$total.sulfur.dioxide)
+
+#Calculando quantidade de outliers
+length(subset(df$total.sulfur.dioxide, df$total.sulfur.dioxide < quantile(df$total.sulfur.dioxide, 0.25) - 1.5*IQR(df$total.sulfur.dioxide))) + 
+length(subset(df$total.sulfur.dioxide, df$total.sulfur.dioxide > quantile(df$total.sulfur.dioxide, 0.75) + 1.5*IQR(df$total.sulfur.dioxide)))
+
+#Plotando histograma da variável total.sulfur.dioxide
+ggplot(aes(x = total.sulfur.dioxide), data = df) + 
+  geom_histogram(binwidth = 2) +
+  scale_x_continuous(limits = c(0,440), breaks = seq(0,440,50))+
+  coord_cartesian(xlim = c(0,300))+
+  ylab('Contagem')+
+  xlab('total.sulfur.dioxide')
+
+```
+
+Observa-se uma distribuição normal dos dados, tendo média e mediana com valores próximos, 138,4 e 134,0, respectivamente. Ainda, nota-se a presença de 19 outliers.
+
+### Analisando atributo density
+```{r, density}
+
+#Resumo da variável density
+summary(df$density)
+
+#Calculando quantidade de outliers
+length(subset(df$density, df$density < quantile(df$density, 0.25) - 1.5*IQR(df$density))) + 
+length(subset(df$density, df$density > quantile(df$density, 0.75) + 1.5*IQR(df$density)))
+
+#Plotando histograma da variável density
+ggplot(aes(x = density), data = df) + 
+  geom_histogram(binwidth = .0001) +
+  scale_x_continuous(limits = c(0.98,1.04), breaks = seq(0.98,1.04,.01))+
+  coord_cartesian(xlim = c(0.98,1.01))+
+  ylab('Contagem')+
+  xlab('density')
+
+```
+
+Observa-se uma distribuição normal dos dados, tendo média e mediana com valores próximos, 0,994 e 0,9937, respectivamente. Ainda, nota-se a presença de 5 outliers.
+
+### Analisando atributo pH
+```{r, pH}
+
+#Resumo da variável pH
+summary(df$pH)
+
+#Calculando quantidade de outliers
+length(subset(df$pH, df$pH < quantile(df$pH, 0.25) - 1.5*IQR(df$pH))) + 
+length(subset(df$pH, df$pH > quantile(df$pH, 0.75) + 1.5*IQR(df$pH)))
+
+#Plotando histograma da variável pH
+ggplot(aes(x = pH), data = df) + 
+  geom_histogram(binwidth = .01) +
+  scale_x_continuous(breaks = seq(2.7,3.82,.1))+
+  ylab('Contagem')+
+  xlab('pH')
+
+```
+
+Observa-se uma distribuição normal dos dados, tendo média e mediana com valores próximos, 3,188 e 3,180, respectivamente. Ainda, nota-se a presença de 75 outliers.
+
+### Analisando atributo sulphates
+```{r, sulphates}
+
+#Resumo da variável sulphates
+summary(df$sulphates)
+
+#Calculando quantidade de outliers
+length(subset(df$sulphates, df$sulphates < quantile(df$sulphates, 0.25) - 1.5*IQR(df$sulphates))) + 
+length(subset(df$sulphates, df$sulphates > quantile(df$sulphates, 0.75) + 1.5*IQR(df$sulphates)))
+
+#Calculando quantidade de outliers com transformação logarítmica (base 10) dos dados
+length(subset(log10(df$sulphates), log10(df$sulphates) < quantile(log10(df$sulphates), 0.25) - 1.5*IQR(log10(df$sulphates)))) + 
+length(subset(log10(df$sulphates), log10(df$sulphates) > quantile(log10(df$sulphates), 0.75) + 1.5*IQR(log10(df$sulphates))))
+
+#Plotando histograma da variável sulphates
+ggplot(aes(x = sulphates), data = df) + 
+  geom_histogram(binwidth = .01) +
+  scale_x_continuous(breaks = seq(.2,1.2,.1))+
+  ylab('Contagem')+
+  xlab('sulphates')
+
+#Plotando histograma da variável sulphates em escala logarítmica (base 10)
+ggplot(aes(x = sulphates), data = df) + 
+  geom_histogram()+
+  scale_x_log10()+
+  ylab('Contagem')+
+  xlab('sulphates')
+
+#Transformando variável em escala logarítmica em df_normalize
+df_normalize$sulphates <- log10(df_normalize$sulphates)
+
+```
+
+Observa-se uma distribuição não normal (positively skewed) dos dados, estando os dados mais concentrados a esquerda do eixo das abcissas. Logo, foi realizado uma transformação logarítmica (base 10) para obter uma distribuição mais normal, verificada no segundo histograma. Ainda, nota-se a presença de 124 outliers sem transformação logarítmica e 51 com transformação logarítmica.
+
+### Analisando atributo alcohol
+```{r, alcohol}
+#Resumo da variável alcohol
+summary(df$alcohol)
+
+#Calculando quantidade de outliers
+length(subset(df$alcohol, df$alcohol < quantile(df$alcohol, 0.25) - 1.5*IQR(df$alcohol))) + 
+length(subset(df$alcohol, df$alcohol > quantile(df$alcohol, 0.75) + 1.5*IQR(df$alcohol)))
+
+#Plotando histograma da variável alcohol
+ggplot(aes(x = alcohol), data = df) + 
+  geom_histogram(binwidth = 0.1) +
+  scale_x_continuous(limits = c(8,14.2), breaks = seq(8,14.2,.5))+
+  ylab('Contagem')+
+  xlab('alcohol')
+
+```
+
+Observa-se uma distribuição normal dos dados, tendo média e mediana com valores próximos, 10,52 e 10,40, respectivamente. Ainda, não nota-se a presença de outliers.
+
+### Tabela que apresenta as médias dos atributos entre as diferentes notas de qualidade
+```{r, summary_dataframe}
+df.means_quality <- df %>% group_by(quality) %>% 
+                            summarise(mean_fixed.acidity = mean(fixed.acidity),
+                                      mean_volatile.acidity = mean(volatile.acidity),
+                                      mean_citric.acid = mean(citric.acid),
+                                      mean_residual.sugar = mean(residual.sugar),
+                                      mean_chlorides = mean(chlorides),
+                                      mean_free.sulfur.dioxide = mean(free.sulfur.dioxide),
+                                      mean_total.sulfur.dioxide = mean(total.sulfur.dioxide),
+                                      mean_density = mean(density),
+                                      mean_pH = mean(pH),
+                                      mean_sulphates = mean(sulphates),
+                                      mean_alcohol = mean(alcohol))
+
+kable(df.means_quality)
+```
+
+# Análise Univariada
+
+### Qual é a estrutura do conjunto de dados?
+Há 4898 amostras de vinho no dataset com 12 atributos.
+O número de amostras de vinho são armazenados na variável (integer) 'X'. Os atributos (numerical), variáveis inputs, são: fixed.acidity (acidez fixa); volatile.acidity (acidez volátil); citric.acid (acidez cítrica); residual.sugar (açúcar residual); chlorides (cloretos); free.sulfur.dioxide (dióxido sulfúrico em forma livre); total.sulfur.dioxide (total de dióxido sulfúrico em forma livre e ácido sulfuroso); density (densidade); pH; sulphates (sulfatos); alcohol (álcool). A variável de output, baseada em dados sensoriais, é a variável (integer) 'quality', a qual representa a nota de 0 a 10 para o respectivo vinho analisado.
+
+Outras observações:  
+- Maioria dos vinhos possuem notas 6 (44,87%) e 5 (29,75%).   
+- Não houveram ocorrências de notas 0, 1, 2 e 10.  
+- Poucos vinhos obtiveram notas 3, 4, 8 e 9.  
+- Apenas 5 vinhos (0,18%) obtiveram nota 9.  
+- Alguns atributos possuem distribuição não normal, por isso foram transformados em escala logarítimica a fim de normalizá-los.    
+
+### Quais são os principais atributos de interesse deste conjunto de dados?
+O principal atributo é quality (qualidade). Será analisado quais atributos podem estar relacionados à qualidade do vinho. Busca-se descobrir quais são diretamente relacionados a qualidade, e então outros que podem relacionar-se com os diretamente relacionados com a qualidade e assim idealizar as propriedades químicas para obter um vinho de boa qualidade.
+
+### Quais outros atributos você acha que podem lhe auxiliar na investigação destes atributos de interesse?
+Procuro realizar uma análise completa sem pré definições. Logo, acredito que todo o restante dos atributos podem auxiliar na investigação. 
+
+### Você criou novas variáveis a partir dos atributos existentes no conjunto de dados?
+Sim, a variável quality.factor, a qual representa uma variável fator originada a partir da variável quality.
+Também, foi criado um dataframe com as variáveis que não possuem distribuição normal, transformadas em escala logarítimica, para ser utilizado no decorrer do projeto, principalmente para quando o modelo preditivo for construído.
+
+### Dos atributos investigados, distribuições incomuns foram encontradas? Você aplicou operações nos dados para limpá-los, ajustá-los ou mudar a forma dos dados? Se sim, por quê??
+Sim, foi encontrado algumas distribuições com formato de cauda longa (positively skewed), sendo os dados concentrados a esquerda do eixo das abcisass. Com isso, transformações logarítmicas foram realizadas a fim de obter uma ditribuição normal.
+
+# Seção de Gráficos Bivariados
+
+### Em cada atributo foi realizado análise de relacionamento com a variável de interesse quality. Para todos os relacionamentos, foi realizado cálculo de correlação com o método de Pearson.
+### Relacionamento fixed.acidity com quality
+```{r echo=FALSE, fixed.acidity_quality}
+
+#Correlação do atributo fixed.acidity com variável de output quality
+with(df, cor.test(fixed.acidity, quality, method = 'pearson'))
+
+#Plotando boxplot da variável fixed.acidity com quality.factor
+ggplot(aes(x = quality.factor, y = fixed.acidity), data = df) +
+  geom_boxplot()+
+  stat_summary(fun.y = mean, geom = 'point', shape = 4)
+
+
+#Criando Dataframe com resumo de informações da variável fixed.acidity
+summ_fixed.acidity <- df %>%  group_by(quality.factor) %>% 
+  summarise (n = n(),
+             Min = min(fixed.acidity),
+             Max = max(fixed.acidity),
+             Mediana = median(fixed.acidity),
+             Media = mean(fixed.acidity),
+             IQRange = IQR(fixed.acidity))
+
+show(summ_fixed.acidity)
+
+#Plotando scatter plot da variável fixed.acidity com quality.factor
+ggplot(aes(x = fixed.acidity, y = quality.factor), data = df)+
+  geom_point(alpha = 1/20, position = position_jitter(h = .3))
+
+```
+
+Analisando o relacionamento da variável fixed.acidity com a variável quality, nota-se uma fraca correlação negativa, com valor igual a aproximadamente -0.11.Também, foi analisado a distribuição da variável fixed.acidity com quality.factor através do gráfico de boxplot. Percebe-se uma baixa variabilidade dos dados e pouca diferença entre as medianas, médias e distribuições da variável fixed.acidity entre cada valor de quality.factor. Por fim, através do scatter plot nota-se a concentração dos dados nas notas 6 e 5, e a baixa correlação negativa entre as variáveis. 
+
+### Relacionamento volatile.acidity com quality
+```{r echo=FALSE, volatile.acidity_quality}
+
+#Correlação do atributo volatile.acidity com variável de output quality
+with(df, cor.test(volatile.acidity, quality, method = 'pearson'))
+
+#Correlação do atributo volatile.acidity com transformação logarítmica (base 10) com variável de output quality
+with(df, cor.test(log10(volatile.acidity), quality, method = 'pearson'))
+
+#Plotando boxplot da variável volatile.acidity em escala logarítmica (base 10)
+ggplot(aes(x = quality.factor, y = volatile.acidity), data = df) +
+  geom_boxplot()+
+  stat_summary(fun.y = mean, geom = 'point', shape = 4)+
+  scale_y_log10()
+
+#Criando Dataframe com resumo de informações da variável volatile.acidity
+summ_volatile.acidity <- df %>%  group_by(quality.factor) %>% 
+  summarise (n = n(),
+             Min = min(volatile.acidity),
+             Max = max(volatile.acidity),
+             Mediana = median(volatile.acidity),
+             Media = mean(volatile.acidity),
+             IQRange = IQR(volatile.acidity))
+
+show(summ_volatile.acidity)
+
+#Plotando scatterplot da variável volatile.acidity com quality.factor
+ggplot(aes(x = volatile.acidity, y = quality.factor), data = df)+
+  geom_point(alpha = 1/30, position = position_jitter(h = .3))
+
+#Plotando scatterplot da variável log10(volatile.acidity) com quality.factor
+ggplot(aes(x = log10(volatile.acidity), y = quality.factor), data = df)+
+  geom_point(alpha = 1/30, position = position_jitter(h = .3))
+
+```
+
+Analisando o relacionamento da variável volatile.acidity com a variável quality, nota-se uma fraca correlação negativa, com valor igual a aproximadamente -0,195 para os dados não transformados e -0,197 para os dados transformados. Também, foi analisado a distribuição da variável volatile.acidity com quality.factor através do gráfico boxplot. Percebe-se uma média variabilidade dos dados e uma baixa diferença entre as medianas e médias da variável volatile.acidity entre cada valor de quality.factor. Por fim, através do scatter plot nota-se a fraca correlação negativa entre as variáveis. Não houve expressiva diferença entre a correlação do atributo não transformado com o transformado em escala logarítmica.
+
+### Relacionamento citric.acid com quality
+```{r echo=FALSE, citric.acid_quality}
+
+#Correlação do atributo citric.acid com variável de output quality
+with(df, cor.test(citric.acid ,quality, method = 'pearson'))
+
+#Plotando boxplot da variável citric.acid
+ggplot(aes(x = quality.factor, y = citric.acid), data = df) +
+  geom_boxplot()+
+  stat_summary(fun.y = mean, geom = 'point', shape = 4)
+
+#Criando Dataframe com resumo de informações da variável citric.acid
+summ_citric.acid <- df %>%  group_by(quality.factor) %>% 
+  summarise (n = n(),
+             Min = min(citric.acid),
+             Max = max(citric.acid),
+             Mediana = median(citric.acid),
+             Media = mean(citric.acid),
+             IQRange = IQR(citric.acid))
+
+show(summ_citric.acid)
+
+#Plotando scatterplot da variável citric.acid com quality.factor
+ggplot(aes(x = citric.acid, y = quality.factor), data = df)+
+  geom_point(alpha = 1/20, position = position_jitter(h = .3))
+
+```
+
+Analisando o relacionamento da variável citric.acidity com a variável quality, não nota-se correlação, com valor igual a aproximadamente -0.009. Por fim, foi analisado a distribuição da variável citric.acid com quality.factor através do gráfico de boxplot. Percebe-se uma baixa variabilidade dos dados e pouca diferença entre as medianas, médias e distribuições da variável citric.acidity entre cada valor de quality.factor. Por fim, através do scatter plot não nota-se correlação entre as variáveis.
+
+### Relacionamento residual.sugar com quality
+```{r echo=FALSE, residual.sugar_quality}
+
+#Correlação do atributo residual.sugar com variável de output quality
+with(df, cor.test(residual.sugar, quality, method = 'pearson'))
+
+#Correlação do atributo residual.sugar com transformação logarítmica (base 10) com variável de output quality
+with(df, cor.test(log10(residual.sugar), quality, method = 'pearson'))
+
+#Plotando boxplot da variável residual.sugar em escala logarítmica (base 10)
+ggplot(aes(x = quality.factor, y = residual.sugar), data = df) +
+  geom_boxplot()+
+  stat_summary(fun.y = mean, geom = 'point', shape = 4)+
+  scale_y_log10()
+
+#Criando Dataframe com resumo de informações da variável residual.sugar
+summ_residual.sugar <- df %>%  group_by(quality.factor) %>% 
+  summarise (n = n(),
+             Min = min(residual.sugar),
+             Max = max(residual.sugar),
+             Mediana = median(residual.sugar),
+             Media = mean(residual.sugar),
+             IQRange = IQR(residual.sugar))
+
+show(summ_residual.sugar)
+
+#Plotando scatterplot da variável residual.sugar com quality.factor
+ggplot(aes(x = residual.sugar, y = quality.factor), data = df)+
+  geom_point(alpha = 1/20, position = position_jitter(h = .3))+
+  coord_cartesian(xlim = c(0,30))
+
+#Plotando scatterplot da variável log10(residual.sugar) com quality.factor
+ggplot(aes(x = log10(residual.sugar), y = quality.factor), data = df)+
+  geom_point(alpha = 1/20, position = position_jitter(h = .3))
+
+```
+
+Analisando o relacionamento da variável residual.sugar com a variável quality, nota-se uma fraca correlação negativa, com valor igual a aproximadamente -0,10 para os dados não transformados e -0,06 para os dados transformados. Por fim, foi analisado a distribuição da variável residual.sugar com quality.factor através do gráfico boxplot. Percebe-se uma alta variabilidade dos dados, alto IQR e uma alta diferença entre as medianas e médias da variável residual.sugar entre cada valor de quality.factor. Por fim, através do scatter plot nota-se a fraca correlação negativa entre as variáveis. Houve diferença entre a correlação do atributo não transformado com o transformado em escala logarítmica, porém de forma a diminuir ainda mais a correlação de Pearson.
+
+### Relacionamento chlorides com quality
+```{r echo=FALSE, chlorides_quality}
+
+#Correlação do atributo chlorides com variável de output quality
+with(df, cor.test(chlorides, quality, method = 'pearson'))
+
+#Correlação do atributo chlorides com transformação logarítmica (base 10) com variável de output quality
+with(df, cor.test(log10(chlorides), quality, method = 'pearson'))
+
+#Plotando boxplot da variável chlorides em escala logarítmica (base 10)
+ggplot(aes(x = quality.factor, y = chlorides), data = df) +
+  geom_boxplot()+
+  stat_summary(fun.y = mean, geom = 'point', shape = 4)+
+  scale_y_log10()
+
+#Criando Dataframe com resumo de informações da variável chlorides
+summ_chlorides <- df %>%  group_by(quality.factor) %>% 
+  summarise (n = n(),
+             Min = min(chlorides),
+             Max = max(chlorides),
+             Mediana = median(chlorides),
+             Media = mean(chlorides),
+             IQRange = IQR(chlorides))
+
+show(summ_chlorides)
+
+#Plotando scatterplot da variável chlorides com quality.factor
+ggplot(aes(x = chlorides, y = quality.factor), data = df)+
+  geom_point(alpha = 1/15, position = position_jitter(h = .3))
+
+#Plotando scatterplot da variável log10(chlorides) com quality.factor
+ggplot(aes(x = log10(chlorides), y = quality.factor), data = df)+
+  geom_point(alpha = 1/15, position = position_jitter(h = .3))
+
+```
+
+Analisando o relacionamento da variável chlorides com a variável quality, nota-se uma moderada correlação negativa, com valor igual a aproximadamente -0,21 para os dados não transformados e mais forte para os dados transformados, -0,27. Também, foi analisado a distribuição da variável chlorides com quality.factor através do gráfico boxplot. Percebe-se uma média variabilidade dos dados. Por fim, através do scatter plot nota-se a fraca correlação negativa entre as variáveis. Houve diferença entre a correlação do atributo não transformado com o transformado em escala logarítmica, de forma a aumantar a forla da correlação de Pearson. Nota-se no gráfico, a tendência negativa de quanto menor o percentual de sal no vinho, maior a sua nota de qualidade. Percebe-se também que os 5 vinhos com nota 9 possuem menos sal que grande parte do restante da amostragem. 
+
+### Relacionamento free.sulfur.dioxide com quality
+```{r echo=FALSE, free.sulfur.dioxide_quality}
+
+#Correlação do atributo free.sulfur.dioxide com variável de output quality
+with(df, cor.test(free.sulfur.dioxide ,quality, method = 'pearson'))
+
+#Plotando boxplot da variávelfree.sulfur.dioxide
+ggplot(aes(x = quality.factor, y = free.sulfur.dioxide), data = df) +
+  geom_boxplot()+
+  stat_summary(fun.y = mean, geom = 'point', shape = 4)
+
+#Criando Dataframe com resumo de informações da variável free.sulfur.dioxide
+summ_free.sulfur.dioxide <- df %>%  group_by(quality.factor) %>% 
+  summarise (n = n(),
+             Min = min(free.sulfur.dioxide),
+             Max = max(free.sulfur.dioxide),
+             Mediana = median(free.sulfur.dioxide),
+             Media = mean(free.sulfur.dioxide),
+             IQRange = IQR(free.sulfur.dioxide))
+
+show(summ_free.sulfur.dioxide)
+
+#Plotando scatterplot da variável free.sulfur.dioxide com quality.factor
+ggplot(aes(x = free.sulfur.dioxide, y = quality.factor), data = df)+
+  geom_point(alpha = 1/15, position = position_jitter(h = .3))
+
+```
+
+Analisando o relacionamento da variável free.sulfur.dioxide com a variável quality, não nota-se correlação, com valor igual a aproximadamente 0.008. Também, foi analisado a distribuição da variável free.sulfur.dioxide com quality.factor através do gráfico de boxplot. Percebe-se uma baixa variabilidade dos dados e pouca diferença entre as medianas, médias e distribuições da variável free.sulfur.dioxide entre cada valor de quality.factor. Por fim, através do scatter plot não é verificado correlação entre as variáveis.
+
+### Relacionamento total.sulfur.dioxide com quality
+```{r echo=FALSE, total.sulfur.dioxide_quality}
+
+#Correlação do atributo total.sulfur.dioxide com variável de output quality
+with(df, cor.test(total.sulfur.dioxide, quality, method = 'pearson'))
+
+#Plotando boxplot da variável total.sulfur.dioxide
+ggplot(aes(x = quality.factor, y = total.sulfur.dioxide), data = df) +
+  geom_boxplot()+
+  stat_summary(fun.y = mean, geom = 'point', shape = 4)
+
+#Criando Dataframe com resumo de informações da variável total.sulfur.dioxide
+summ_total.sulfur.dioxide <- df %>%  group_by(quality.factor) %>% 
+  summarise (n = n(),
+             Min = min(total.sulfur.dioxide),
+             Max = max(total.sulfur.dioxide),
+             Mediana = median(total.sulfur.dioxide),
+             Media = mean(total.sulfur.dioxide),
+             IQRange = IQR(total.sulfur.dioxide))
+
+show(summ_total.sulfur.dioxide)
+
+#Plotando scatterplot da variável total.sulfur.dioxide com quality.factor
+ggplot(aes(x = total.sulfur.dioxide, y = quality.factor), data = df)+
+  geom_point(alpha = 1/15, position = position_jitter(h = .3))
+
+```
+
+Analisando o relacionamento da variável total.sulfur.dioxide com a variável quality, nota-se uma fraca correlação negativa, com valor igual a aproximadamente -0,17. Por fim, foi analisado a distribuição da variável total.sulfur.dioxide com quality.factor através do gráfico de boxplot. Percebe-se uma média variabilidade dos dados e diferenças entre as medianas, médias e distribuições da variável total.sulfur.dioxide para cada valor de quality.factor. Por fim, através do scatter plot nota-se a fraca correlação positiva entre as variáveis.
+
+### Relacionamento density com quality
+```{r echo=FALSE, density_quality}
+
+#Correlação do atributo density com variável de output quality
+with(df, cor.test(density, quality, method = 'pearson'))
+
+#Plotando boxplot da variável density
+ggplot(aes(x = quality.factor, y = density), data = df) +
+  geom_boxplot()+
+  stat_summary(fun.y = mean, geom = 'point', shape = 4)
+
+#Criando Dataframe com resumo de informações da variável density
+summ_density <- df %>%  group_by(quality.factor) %>% 
+  summarise (n = n(),
+             Min = min(density),
+             Max = max(density),
+             Mediana = median(density),
+             Media = mean(density),
+             IQRange = IQR(density))
+
+show(summ_density)
+
+#Plotando scatterplot da variável density com quality.factor
+ggplot(aes(x = density, y = quality.factor), data = df)+
+  geom_point(alpha = 1/15, position = position_jitter(h = .3))+
+  coord_cartesian(xlim=c(0.985,1.005))
+
+```
+
+Analisando o relacionamento da variável density com a variável quality, nota-se uma moderada correlação negativa, com valor igual a aproximadamente -0,307. Também, foi analisado a distribuição da variável density com quality.factor através do gráfico de boxplot. Percebe-se uma pequena variabilidade dos dados, principalmente em relação a 4 vinhos com nota 9, os quais possuem menor densidade do que grande parte da amostragem. Por fim, através do scatter plot nota-se a moderada correlação positiva entre as variáveis, sendo que em notas superiores a 5 verifica-se a tendência negativa com maior força, em que quanto menor a densidade, maior a nota de qualidade do vinho.
+
+### Relacionamento pH com quality
+```{r echo=FALSE, pH_quality}
+
+#Correlação do atributo pH com variável de output quality
+with(df, cor.test(pH, quality, method = 'pearson'))
+
+#Plotando boxplot da variável pH
+ggplot(aes(x = quality.factor, y = pH), data = df) +
+  geom_boxplot()+
+  stat_summary(fun.y = mean, geom = 'point', shape = 4)
+
+#Criando Dataframe com resumo de informações da variável pH
+summ_pH <- df %>%  group_by(quality.factor) %>% 
+  summarise (n = n(),
+             Min = min(pH),
+             Max = max(pH),
+             Mediana = median(pH),
+             Media = mean(pH),
+             IQRange = IQR(pH))
+
+show(summ_pH)
+
+#Plotando scatterplot da variável pH com quality.factor
+ggplot(aes(x = pH, y = quality.factor), data = df)+
+  geom_point(alpha = 1/15, position = position_jitter(h = .3))
+
+```
+
+Analisando o relacionamento da variável pH com a variável quality, não nota-se correlação, com valor igual a aproximadamente 0.099. Também, foi analisado a distribuição da variável pH com quality.factor através do gráfico de boxplot. Percebe-se uma média variabilidade dos dados e baixa diferencça entre medianas e médias entre cada valor de quality.factor. Por fim, através do scatter plot não observa-se correlação entre as variáveis.
+
+### Relacionamento sulphates com quality
+```{r echo=FALSE, sulphates_quality}
+
+#Correlação do atributo sulphates com variável de output quality
+with(df, cor.test(sulphates, quality, method = 'pearson'))
+
+#Correlação do atributo sulphates com transformação logarítmica (base 10) com variável de output quality
+with(df, cor.test(log10(sulphates), quality, method = 'pearson'))
+
+#Plotando boxplot da variável sulphates em escala logarítmica (base 10)
+ggplot(aes(x = quality.factor, y = sulphates), data = df) +
+  geom_boxplot()+
+  stat_summary(fun.y = mean, geom = 'point', shape = 4)+
+  scale_y_log10()
+
+#Criando Dataframe com resumo de informações da variável sulphates
+summ_sulphates <- df %>%  group_by(quality.factor) %>% 
+  summarise (n = n(),
+             Min = min(sulphates),
+             Max = max(sulphates),
+             Mediana = median(sulphates),
+             Media = mean(sulphates),
+             IQRange = IQR(sulphates))
+
+show(summ_sulphates)
+
+#Plotando scatterplot da variável sulphates com quality.factor
+ggplot(aes(x = sulphates, y = quality.factor), data = df)+
+  geom_point(alpha = 1/20, position = position_jitter(h = .3))
+
+#Plotando scatterplot da variável log10(sulphates) com quality.factor
+ggplot(aes(x = log10(sulphates), y = quality.factor), data = df)+
+  geom_point(alpha = 1/20, position = position_jitter(h = .3))
+```
+
+Analisando o relacionamento da variável sulphates com a variável quality, não nota-se correlação, com valor igual a aproximadamente 0,054 para os dados não transformados e 0,038 para os dados transformados. Também, foi analisado a distribuição da variável sulphates com quality.factor através do gráfico boxplot. Percebe-se uma média variabilidade dos dados e pouca diferença das médias e medianas entre as diferentes notas. Por fim, através do scatter plot não observa-se correlação entre as variáveis tanto com os dados não transformados quanto com os dados transformados.
+
+### Relacionamento alcohol com quality
+```{r echo=FALSE, alcohol_quality}
+
+#Correlação do atributo alcohol com variável de output quality
+with(df, cor.test(alcohol, quality, method = 'pearson'))
+
+#Plotando boxplot da variável alcohol
+ggplot(aes(x = quality.factor, y = alcohol), data = df) +
+  geom_boxplot()+
+  stat_summary(fun.y = mean, geom = 'point', shape = 4)
+
+#Criando Dataframe com resumo de informações da variável pH
+summ_alcohol <- df %>%  group_by(quality.factor) %>% 
+  summarise (n = n(),
+             Min = min(alcohol),
+             Max = max(alcohol),
+             Mediana = median(alcohol),
+             Media = mean(alcohol),
+             IQRange = IQR(alcohol))
+
+show(summ_alcohol)
+
+#Plotando scatterplot da variável alcohol com quality.factor
+ggplot(aes(x = alcohol, y = quality.factor), data = df)+
+  geom_point(alpha = 1/15, position = position_jitter(h = .3))
+
+```
+
+Analisando o relacionamento da variável alcohol com a variável quality, nota-se a mais forte correlação entre os atributos e a variável quality, com valor positivo de 0.436. Também, foi analisado a distribuição da variável alcohol com quality.factor através do gráfico de boxplot. Percebe-se uma média variabilidade dos dados e diferenças das médias e medianas entre as notas. Verifica-se a tendência positiva da correlação entre alcohol e quality, a partir da nota 6. Por fim, através do scatter plot observa-se a relativamente forte correlação positiva entre as variáveis. Pode-se observar que 4 dos 5 vinhos com nota 9 obtiveram índice maior que a maioria dos dados da amostragem, sendo que 1 (outlier) apresentou o valor da mediana da amostragem, 10,4%.
+
+```{r}
+#Escalonando df_normalize
+df_normalize <- data.frame(scale(df_normalize[,c(2:12)]))
+df_normalize$quality <- df$quality
+```
+
+
+### Investigando relacionamentos entre todas as variáveis com Matriz de Correlação
+### Matriz de correlação em dataframe com os dados originais
+```{r echo=FALSE, matriz_correlacao}
+theme_set(theme_minimal(7.5))
+
+set.seed(1836)
+df_subset <- df[, c(2:14)]
+names(df_subset)
+#jpeg('Correlacoes_df.jpeg', width = 7, height = 4, units = 'in', res = 300)
+ggpairs(df_subset[sample.int(nrow(df_subset),1000),],
+        lower = list(continuous = wrap(ggally_points, size = .1, color = 'red')),
+        upper = list(continuous = wrap('cor', size = 2.5)))
+#dev.off()
+
+```
+
+### Matriz de correlação em dataframe com os dados normalizados
+```{r echo=FALSE, matriz_correlacao_df_normalize}
+theme_set(theme_minimal(7.5))
+
+set.seed(1836)
+names(df_normalize)
+#jpeg('Correlacoes_df_normalize.jpeg', width = 7, height = 4, units = 'in', res = 300)
+ggpairs(df_normalize[sample.int(nrow(df_normalize),1000),],
+        lower = list(continuous = wrap(ggally_points, size = .1, color = 'red')),
+        upper = list(continuous = wrap('cor', size = 2.5)))
+#dev.off()
+```
+
+Analisando ambos dataframes, correlações com maior força (acima de módulo de 0,4) em ordem decrescente:
+1.density e residual.sugar: 0,816;
+2.density e alcohol: -0,8;
+3.free.sulfur.dioxide e total.sulfur.dioxide: 0,615;
+4.total.sulfur.dioxide e density: 0,506;
+5.log10(chlorides) e alcohol: -0.489;
+6.alcohol e quality: 0,464;
+7.residual.sugar e alcohol: -0,435;
+8.total.sulfur.dioxide e alcohol: -0,424.
+
+### Plotando scatter plots dos três relacionamentos mais fortes
+### 1. Relacionamento de density com residual.sugar
+```{r, density_residual.sugar}
+#Correlação do atributo density com residual.sugar
+with(df, cor.test(residual.sugar, density , method = 'pearson'))
+
+#Plotando scatterplot da variável density com residual.sugar
+ggplot(aes(x = residual.sugar, y =density), data = df)+
+  geom_point(alpha = 1/15)+
+  coord_cartesian(xlim=c(0,30), ylim=c(0.985,1.005))
+
+```
+
+Discussão do gráfico na questões de Análise Bivariada a seguir.
+
+### 2. Relacionamento de density com alcohol
+```{r, density_alcohol}
+#Correlação do atributo density com alcohol
+with(df, cor.test(density, alcohol, method = 'pearson'))
+
+#Plotando scatterplot da variável density com alcohol
+ggplot(aes(x = density, y = alcohol), data = df)+
+  geom_point(alpha = 1/15, position = position_jitter(h = 0.1))+
+  coord_cartesian(xlim=c(0.985,1.005), ylim=c(8,14.2))
+
+```
+
+Discussão do gráfico na questões de Análise Bivariada a seguir.
+
+### 3. Relacionamento de free.sulfur.dioxide com total.sulfur.dioxide
+```{r, free_total.sulfur.dioxide}
+#Correlação do atributo free.sulfur.dioxide com total.sulfur.dioxide
+with(df, cor.test(free.sulfur.dioxide, total.sulfur.dioxide, method = 'pearson'))
+
+#Plotando scatterplot da variável free.sulfur.dioxide com total.sulfur.dioxide
+ggplot(aes(x = free.sulfur.dioxide, y = total.sulfur.dioxide), data = df)+
+  geom_point(alpha = 1/15, position = position_jitter(h = 0.1))+
+  coord_cartesian(xlim=c(0,100), ylim=c(0,300))
+
+```
+
+Discussão do gráfico na questões de Análise Bivariada a seguir.
+
+# Análise Bivariada
+
+### Discuta sobre alguns dos relacionamentos observados nesta parte da investigação. Como os atributos de interesse variaram no conjunto de dados?
+Vericado que as variáveis alcohol e density são as que possuem correlação de "Pearson" mais fortes com a variável quality. Álcool é uma correlação positiva, há mais incidência de notas altas para percentuais maiores de álcool. Já densidade é uma correlação negativa, ou seja, quanto menor densidade, menos notas altas são identificadas.
+Também é importante ressaltar que densidade com álcool possui uma forte correlação negativa, ou seja, verifica-se que vinhos com menores densidades possuem maiores percentuais  de álcool.
+
+### Você observou algum relacionamento interessante entre os outros atributos (os que não são de interesse)?
+Relacionamentos entre atributos não relacionados com qualidade:  
+- density e residual.sugar: 0,816;  
+- density e alcohol: -0,8;  
+- free.sulfur.dioxide e total.sulfur.dioxide: 0,615;  
+- total.sulfur.dioxide e density: 0,506;  
+- log10(chlorides) e alcohol: -0.489;  
+- residual.sugar e alcohol: -0,435;  
+- total.sulfur.dioxide e alcohol: -0,424.
+
+### Qual foi o relacionamento mais forte encontrado?
+Açúcar residual com a densidade do vinho foi o relacionamento mais forte, seguido pelo relacionamento inversamente proporcional da densidade com o percentual alcoólico. Além disso, nota-se relacionamento entre dióxido de enxofre livre e dióxido de enxofre total, o que era esperado, visto que a quantidade de dióxido de enxofre livre faz parte da quantidade total de dióxido de enxofre no vinho. Também, nota-se relacionamento proporcional da quantidade total de dióxido de enxofre no vinho com densidade e inversamente proporcional com o percentual de álcool. Por fim, nota-se que o açúcar residual do vinho é inversamente proporcional com o percentual alcoólico, o que era esperado, visto que álcool é formado a partir de moléculas de açúcar.
+
+# Seção de gráficos Multivariados
+### As variáveis alcohol, density e quality foram segmentadas com o intuito de melhorar a visualização de possíveis tendências.
+Segmentações da nota de qualidade Qualidade: (3,4); (5,6); (7,8,9)
+Segmentação de álcool em 5 níveis e densidade em 4.
+
+A seguir, é apresentado diversos gráficos com o intuito de buscar relacionamentos multivariados. A discussão sobre os relacionamentos mais claros identificados estão descritas ao final da seção.
+```{r echo=FALSE, Multivariate_Plots}
+df$alcohol_cut <- cut(df$alcohol, breaks = 5)
+df$density_cut <- cut(df$alcohol, breaks = 4)
+df$quality_cut <- cut(df$quality, breaks = c(2.99,4,6,9))
+df$quality_cut_equal <- cut(df$quality, breaks = 4)
+```
+
+### Relacionamento de residual.sugar x density x quality
+```{r, res_den_qua}
+ggplot(aes(x = residual.sugar, y = density), 
+       data = df)+
+  geom_line(aes(color = quality_cut), stat = 'summary', fun.y = median)+
+  geom_line(stat = 'summary', fun.y = mean, linetype = 2, color = 'Black')+
+  coord_cartesian(xlim = c(0,22),ylim = c(0.987,1.0025))
+
+
+ggplot(aes(x = residual.sugar, y = density), 
+       data = df)+
+  geom_point(aes(color = quality_cut), stat = 'summary', fun.y = median)+
+  geom_line(stat = 'summary', fun.y = mean, linetype = 2, color = 'Black')+
+  coord_cartesian(xlim = c(0,22),ylim = c(0.987,1.0025))
+
+ggplot(aes(x = residual.sugar, y = density), 
+       data = df)+
+  geom_point(aes(color = quality.factor), stat = 'summary', fun.y = median)+
+  geom_line(stat = 'summary', fun.y = mean, linetype = 2, color = 'Black')+
+  coord_cartesian(xlim = c(0,22),ylim = c(0.987,1.0025))
+```
+
+### Relacionamento de residual.sugar x density x alcohol
+```{r, res_den_alc}
+ggplot(aes(x = residual.sugar, y = density), 
+       data = df)+
+  geom_line(aes(color = alcohol_cut), stat = 'summary', fun.y = median)+
+  geom_line(stat = 'summary', fun.y = mean, linetype = 2, color = 'Black')+
+  coord_cartesian(xlim = c(0,22),ylim = c(0.987,1.0025))
+
+ggplot(aes(x = residual.sugar, y = density), 
+       data = df)+
+  geom_point(aes(color = alcohol_cut), stat = 'summary', fun.y = median)+
+  geom_line(stat = 'summary', fun.y = mean, linetype = 2, color = 'Black')+
+  coord_cartesian(xlim = c(0,22),ylim = c(0.987,1.0025))
+```
+
+### Relacionamento de log10(chlorides) x alcohol x quality
+```{r, chl_alc_qua}
+ggplot(aes(x = chlorides, y = alcohol), 
+       data = df_normalize)+
+  geom_line(aes(color = factor(quality)), stat = 'summary', fun.y = median)+
+  coord_cartesian()
+
+ggplot(aes(x = chlorides, y = alcohol), 
+       data = df_normalize)+
+  geom_point(aes(color = factor(quality)), stat = 'summary', fun.y = median)+
+  coord_cartesian()
+```
+
+### Relacionamento de free.sulfur.dioxide x total.sulfur.dioxide x quality
+```{r, free_total_qua}
+ggplot(aes(x = free.sulfur.dioxide, y = total.sulfur.dioxide), 
+       data = df)+
+  geom_line(aes(color = quality_cut), stat = 'summary', fun.y = median)+
+  geom_line(stat = 'summary', fun.y = mean, linetype = 2, color = 'Black')+
+  coord_cartesian(xlim = c(0,150),ylim = c(0.987,300))
+
+ggplot(aes(x = free.sulfur.dioxide, y = total.sulfur.dioxide), 
+       data = df)+
+  geom_point(aes(color = quality_cut), stat = 'summary', fun.y = median)+
+  geom_line(stat = 'summary', fun.y = mean, linetype = 2, color = 'Black')+
+  coord_cartesian(xlim = c(0,150),ylim = c(0.987,300))
+
+ggplot(aes(x = free.sulfur.dioxide, y = total.sulfur.dioxide), 
+       data = df)+
+  geom_point(aes(color = quality.factor), stat = 'summary', fun.y = median)+
+  geom_line(stat = 'summary', fun.y = mean, linetype = 2, color = 'Black')+
+  coord_cartesian(xlim = c(0,150),ylim = c(0.987,300))
+```
+
+### Relacionamento de free.sulfur.dioxide x total.sulfur.dioxide x density
+```{r, free_total_den}
+ggplot(aes(x = free.sulfur.dioxide, y = total.sulfur.dioxide), 
+       data = df)+
+  geom_line(aes(color = density_cut), stat = 'summary', fun.y = median)+
+  geom_line(stat = 'summary', fun.y = mean, linetype = 2, color = 'Black')+
+  coord_cartesian(xlim = c(0,150),ylim = c(0.987,300))
+
+ggplot(aes(x = free.sulfur.dioxide, y = total.sulfur.dioxide), 
+       data = df)+
+  geom_point(aes(color = density_cut), stat = 'summary', fun.y = median)+
+  geom_line(stat = 'summary', fun.y = mean, linetype = 2, color = 'Black')+
+  coord_cartesian(xlim = c(0,150),ylim = c(0.987,300))
+```
+
+### Relacionamento de residual.sugar x alcohol/density x quality
+```{r, res_alcden_qua}
+with(df,cor.test(residual.sugar,alcohol/density,method = 'pearson'))
+with(df,cor.test(alcohol/density, quality,method = 'pearson'))
+
+ggplot(aes(x = residual.sugar, y = alcohol/density), 
+       data = df)+
+  geom_line(aes(color = quality_cut), stat = 'summary', fun.y = median)+
+  stat_smooth(method = 'lm')+
+  coord_cartesian(xlim = c(0,22), ylim = c(7.5,14))
+
+ggplot(aes(x = residual.sugar, y = alcohol/density), 
+       data = df)+
+  geom_point(aes(color = quality.factor), stat = 'summary', fun.y = median)+
+  stat_smooth(method = 'lm')+
+  coord_cartesian(xlim = c(0,22), ylim = c(7.5,14))
+```
+
+### Relacionamento de total.sulfur.dioxide x alcohol/density x quality
+```{r, total_alcden_qua}
+with(df,cor.test(total.sulfur.dioxide,alcohol/density,method = 'pearson'))
+with(df,cor.test(alcohol/density, quality,method = 'pearson'))
+
+ggplot(aes(x = total.sulfur.dioxide, y = alcohol/density), 
+       data = df)+
+  geom_line(aes(color = quality_cut), stat = 'summary', fun.y = median)+
+  stat_smooth(method = 'lm')+
+  coord_cartesian(xlim = c(0,280))
+
+ggplot(aes(x = total.sulfur.dioxide, y = alcohol/density), 
+       data = df)+
+  geom_point(aes(color = quality_cut), stat = 'summary', fun.y = median)+
+  stat_smooth(method = 'lm')+
+  coord_cartesian(xlim = c(0,280))
+
+ggplot(aes(x = total.sulfur.dioxide, y = alcohol/density), 
+       data = df)+
+  geom_point(aes(color = quality.factor), stat = 'summary', fun.y = median)+
+  stat_smooth(method = 'lm')+
+  coord_cartesian(xlim = c(0,280))
+```
+
+```{r, res_den_by_alcohol}
+#Residual.sugar x density color by alcohol
+ggplot(aes(x = residual.sugar, y = density), 
+       data = df)+
+  geom_point(aes(color = alcohol_cut))+
+  coord_cartesian(xlim = c(0,22),ylim = c(0.987,1.0025))+
+  scale_color_brewer(type = 'div',
+                     guide = guide_legend(title = 'Alcohol', reverse = FALSE,
+                                          override.aes = list(alpha = 1, size = 2)))+
+  ggtitle("Residual.sugar x density colored by alcohol")+
+  theme(plot.title = element_text(hjust = 0.5, size = 14))
+```
+
+
+
+# Análise Multivariada
+
+### Discuta sobre os relacionamentos observados nesta parte da investigação. Quais atributos que fortaleceram os demais na observação das variáveis de interesse?
+Menores níveis de açúcar residual e de ácido sulfúrico total relacionam-se com maiores índices da relação alcohol/density, a qual quanto maior, maior a concentração de notas altas.
+
+
+### Interações surpreendentes e/ou interessantes foram encontradas entre os atributos?
+Notas altas de qualidade concentram-se em menores níveis de cloro, os quais relacionam-se de forma diretamente proporcional com o percentual alcoólico.
+
+### OPCIONAL: Modelos foram criados usando este conjunto de dados? Discuta sobre os pontos fortes e as limitações do seu modelo.
+
+### Modelo de regressão linear para prever variável quality
+```{r, lm_quality}
+m1 <- lm(quality ~ alcohol, data = df_normalize)
+m2 <- update(m1, ~ . + density)
+m3 <- update(m2, ~ . + residual.sugar)
+m4 <- update(m3, ~ . + chlorides)
+m5 <- update(m4, ~ . + total.sulfur.dioxide)
+mtable(m1, m2, m3, m4, m5)
+summary(m3)
+```
+
+Realizar um modelo linear pode não ser o ideal, visto que para prever uma variável categórica é preferível utilizar um modelo de classificação e não de regressão. Entretanto, inicialmente foi tentado obter uma equação linear que pudesse prever a variável quality como um problema de regressão. Conforme métricas analisadas, o modelo não demonstrou bom desempenho, obtendo um índice de R-quadrado de apenas 21%.
+
+### Modelo de classificação com SVM para prever variável quality
+```{r, svm_quality}
+#segmentando variável quality
+X <- array(NA,c(4898,1))
+
+X[which(df_normalize$quality < 5)]='RUIM'
+X[which(df_normalize$quality >=5 & df_normalize$quality < 7)]='MEDIO'
+X[which(df_normalize$quality >=7)]='ALTO'
+
+X <- data.frame('quality.class' = X)
+
+X$quality.class <- factor(X$quality.class, levels = c('RUIM','MEDIO','ALTO'))
+
+df_normalize <- cbind(df_normalize, X)
+#Fim da segmentação
+
+df_normalize_training <- df_normalize[1:13]
+df_normalize_training$quality <- factor(df_normalize_training$quality)
+
+set.seed(494) 
+split = sample.split(df_normalize_training$quality, SplitRatio = 0.75) 
+
+training_set = subset(df_normalize_training[1:12], split == TRUE) 
+test_set = subset(df_normalize_training[1:12], split == FALSE) 
+
+svmfit <- svm(quality ~ .,
+              data = training_set,
+              type = 'C-classification',
+              kernel ='radial',
+              cost = 10,
+              gamma = 0.5)
+
+y_pred <- predict(svmfit, newdata = test_set[-12])
+
+cm <- table(test_set[,12], y_pred)
+```
+Matriz de Confusão e Acurácia
+```{r}
+kable(cm)
+Accuracy(y_pred = y_pred, y_true = test_set[, 12])
+
+cm <- ConfusionMatrix(y_pred = y_pred, y_true = test_set[,12])
+cm
+
+test_set <- cbind(test_set, 'y_pred' = y_pred)
+test_set <- cbind(test_set, 'T/F' = (test_set[,12] == y_pred))
+
+#Precision e Recall da classe 3
+
+TP_3 <- length((test_set %>% filter(quality==3))$quality)
+FN_3 <- length((test_set %>% filter(`T/F` == 'FALSE'))$`T/F`)
+FP_3 <- length((test_set %>% filter(y_pred==3) %>% filter(`T/F` == 'FALSE'))$`T/F`)
+
+recall_3 <- TP_3 / (TP_3 + FN_3)
+precision_3 <- TP_3 / (TP_3 + FP_3)
+
+
+```
+
+Na primeira modelagem com SVM, os resultados não estavam satisfatórios, pois os valores previstos pelo modelo estavam fortemente enviezados para as notas 5 e 6. Após alterações nos hiperparâmetros, foi selecionado o tipo de kernel 'radial' (RBF), custo (fator C) igual a 10 e gama igual a 0,5.
+Assim, obteve-se resultados satisfatórios, com melhor generalização do modelo, conforme apresentado na Matriz de Confusão acima. A acurácia do modelo obteve um valor de 66,12%, o que não é ruim, considerando que a probabilidade de acertar um número de 0 a 10 é 10%, o modelo é 6 vezes mais acurado. Entretanto, nota-se uma baixa sensibilidade para identificar as notas ruins 3 e 4, onde o modelo está tendenciando a prever notas 5 e 6. Nas outras notas, o modelo demonstra melhores resultados.
+Foi desenvolvido outro modelo com a finalidade de classificar a qualidade do vinho em "RUIM", "MEDIO", "BOM". Foi considerado vinhos ruins aqueles com notas abaixo de 5, médio com nota 5 e 6, e bons vinhos para aqueles com notas acima de 6.
+
+### Modelo de classificação com SVM para prever qualidade dos vinhos entre ruins, médios e bons
+```{r}
+set.seed(300) 
+split_2 = sample.split(df_normalize_training$quality.class, SplitRatio = 0.75) 
+
+training_set_2 = subset(df_normalize_training[-12], split == TRUE) 
+test_set_2 = subset(df_normalize_training[-12], split == FALSE) 
+
+svmfit_2 <- svm(quality.class ~ .,
+              data = training_set_2,
+              type = 'C-classification',
+              kernel ='radial', 
+              cost = 100,
+              gamma = 0.5)
+
+y_pred_2 <- predict(svmfit_2, newdata = test_set[-12])
+
+cm_2 <- table(test_set_2[,12], y_pred_2)
+```
+Matriz de Confusão e Acurácia
+```{r}
+kable(cm_2)
+Accuracy(y_pred = y_pred_2, y_true = test_set_2[,12])
+```
+
+O modelo para prever a qualidade do vinho entre ruim, médio e bom obteve uma maior acurácia que o modelo anterior, obtendo um valor de 82,20%. Em relação a acurácia para identificar notas altas, o modelo não é tão preciso quanto a identificar notas médias, porém obteve uma acurácia satisfatória de 58,87% (156/265), sendo que apenas um vinho com nota alta foi classificado como nota ruim. Notas médias obtiveram uma excelente acurácia, com valor igual a 92,23% (843/914). Entretanto, nota-se novamente a pouca sensibilidade de o modelo identificar vinhos ruins, obtendo uma acurácia de 17,39% (8/46).
+
+A seguir, é realizado o método PCA (Principal Component Analysis) e utilizado o modelo, após a transformação dos dados em Principal Components.
+
+
+### Transformando dataset com PCA
+```{r}
+df_pca <- prcomp(training_set_2[,c(1:11)],center = TRUE, scale. = TRUE)
+
+summary(df_pca)
+
+autoplot(df_pca,
+         loadings = TRUE, loadings.label = TRUE,
+         colour = training_set$quality)
+
+#compute standard deviation of each principal component
+std_dev <- df_pca$sdev
+
+#compute variance
+pr_var <- std_dev^2
+
+#check variance of first 10 components
+pr_var[1:11]
+
+prop_varex <- pr_var/sum(pr_var)
+prop_varex[1:11]
+
+plot(prop_varex, xlab = "Principal Component",
+             ylab = "Proportion of Variance Explained",
+             type = "b")
+
+#cumulative scree plot
+plot(cumsum(prop_varex), xlab = "Principal Component",
+              ylab = "Cumulative Proportion of Variance Explained",
+              type = "b")
+
+
+```
+
+O resultado do modelo PCA não foi satisfatório para esse dataset, visto que para compreender mais de 90% da variância dos atributos, foram necessários 8 dos 11 componentes principais.
+
+### Modelo de classificação com SVM para prever variável quality com os dados transformados em PCs
+```{r}
+#add a training set with principal components
+df_pca_training <- data.frame(quality.class = training_set_2$quality.class, df_pca$x)
+
+#we are interested in first 8 PCAs
+training_set_pcadata <- df_pca_training[,1:8]
+
+#running svm
+svmfit_3 <- svm(quality.class ~ .,
+              data = training_set_pcadata[1:8],
+              type = 'C-classification',
+              kernel ='radial', 
+              cost = 100,
+              gamma = 0.5)
+
+#transform test into PCA
+test_set_pcadata <- predict(df_pca, newdata = test_set_2[-12])
+test_set_pcadata <- data.frame(test_set_pcadata)
+
+#select the first 8 components
+test_set_pcadata <- test_set_pcadata[,1:8]
+
+test_set_pcadata <- cbind(test_set_pcadata, quality.class = test_set_2$quality.class)
+
+#make prediction on test data
+y_pred_3 <- predict(svmfit_3, test_set_pcadata[-9])
+
+cm_3 <- table(test_set_pcadata[,9], y_pred_3)
+```
+
+Matriz de Confusão e Acurácia
+```{r}
+kable(cm_3)
+Accuracy(y_pred = y_pred_3, y_true = test_set_pcadata[,9])
+```
+
+Aplicando o modelo SVM na amostra com a dimensionalidade do dataset reduzida, a acurácia reduziu um pouco, obtendo um valor de 77,39%.
+
+### Modelo de regressão linear para prever variável density
+```{r, ml_density}
+d1 <- lm(density ~ residual.sugar, data = df_normalize)
+d2 <- update(d1, ~ . + alcohol)
+d3 <- update(d2, ~ . + quality)
+d4 <- update(d3, ~ . + total.sulfur.dioxide)
+d5 <- update(d4, ~ . + chlorides)
+
+mtable(d1, d2, d3, d4, d5)
+summary(d4)
+```
+
+O modelo linear acima, desenvolvido para prever a densidade do vinho, a partir do açúcar residual, álcool, qualidade e dióxido de enxofre, obteve um bom desempenho, descrevendo 85,17% da variância do atributo densidade.
+
+### Modelo de regressão linear para prever variável alcohol
+```{r, ml_alcohol}
+a1 <- lm(alcohol ~ density, data = df_normalize)
+a2 <- update(a1, ~ . + residual.sugar)
+a3 <- update(a2, ~ . + chlorides)
+a4 <- update(a3, ~ . + quality)
+a5 <- update(a4, ~ . + total.sulfur.dioxide)
+mtable(a1, a2, a3, a4, a5)
+summary(a5)
+```
+
+O modelo linear para prever o percentual alcoólico do vinho, a partir da densidade, do açúcar residual, cloro, qualidade e dióxido de enxofre obteve um desempenho razoável, descrevendo 73,22% da variância da variável álcool.
+
+------
+
+# Gráficos Finais e Sumário
+
+### Primeiro Gráfico
+```{r echo=FALSE, Plot_One}
+summary(df$quality.factor)
+
+x1 <- length(df$quality.factor)
+
+x2 <- length(subset(df$quality.factor,df$quality.factor == 5 | 
+                df$quality.factor == 6 | 
+                df$quality.factor == 7))
+
+x2/x1
+
+ggplot(aes(x = quality), data = df) + 
+  geom_histogram(binwidth = 1) +
+  scale_x_continuous(limits = c(0,10), breaks = seq(0,10,1))+
+  scale_y_continuous(breaks = seq(0,2500,500))+
+  ylab('Contagem')+
+  xlab('quality')+
+  ggtitle("Distribuição da variável de interesse 'qualidade'")+
+  theme(plot.title = element_text(hjust = 0.5, size = 14))
+
+```
+
+### Descrição do Primeiro Gráfico
+É importante ressaltar que os valores da variável qualidade estão muito concentrados entre 5 e 7, contabilizando aproximadamente 93% de todas as amostras. Esse fator dificulta a sensibilidade dos modelos preditivos e a força das correlações dos atributos com a qualidade do vinho.
+
+
+### Segundo Gráfico
+```{r echo=FALSE, Plot_Two}
+#Residual.sugar x density color by alcohol facet by quality
+ggplot(aes(x = residual.sugar, y = density), 
+       data = df)+
+  geom_point(aes(color = alcohol_cut))+
+  facet_wrap(~quality.factor)+
+  coord_cartesian(xlim = c(0,22),ylim = c(0.987,1.0025))+
+  scale_color_brewer(type = 'div',
+                     guide = guide_legend(title = 'Alcohol', reverse = FALSE,
+                                          override.aes = list(alpha = 1, size = 2)))+
+  ggtitle("Residual.sugar x density color by alcohol facet by quality")+
+  theme(plot.title = element_text(hjust = 0.5, size = 14))
+```
+
+### Descrição do Segundo Gráfico
+Apesar de não haver uma correlação forte entre os atributos e a qualidade do vinho, foi verificado fortes correlações entre as propriedades químicas do vinho, tal como entre as variáveis açúcar residual, densidade e percentual alcoólico. A partir da análise desses relacionamentos, é possível identificar um certo padrão entre as diferentes notas de qualidade do vinho.
+O gráfico acima apresenta a forte correlação positiva entre a variável açúcar residual e densidade, demonstrando que quanto mais açúcar sobra após o processo de fermentação do vinho, maior a densidade da bebida e menor o percentual alcoólico. Além disso, segmentando as amostras pelas diferentes notas de qualidade, é verificado que nas observações de notas maiores, ocorre maior proporção das cores branco e verde, demonstrando que menos açúcar residual, menos densidade e maior percentual alcoólico são características de vinhos de maior qualidade.
+
+### Terceiro Gráfico
+```{r echo=FALSE, Plot_Three}
+
+g1<- ggplot(aes(x = residual.sugar, y = density), 
+       data = df)+
+  geom_point(aes(color = quality.factor))+
+  stat_smooth(method = 'lm')+
+  scale_color_brewer(type = 'div',
+                     guide = guide_legend(title = 'Quality', reverse = FALSE,
+                                          override.aes = list(alpha = 1, size = 2)))+
+  coord_cartesian(xlim=c(0,30), ylim=c(0.985,1.005))
+
+g2 <- ggplot(aes(x = density, y = alcohol), 
+       data = df)+
+  geom_point(aes(color = quality.factor))+
+  stat_smooth(method = 'lm')+
+  scale_color_brewer(type = 'div',
+                     guide = guide_legend(title = 'Quality', reverse = FALSE,
+                                          override.aes = list(alpha = 1, size = 2)))+
+    coord_cartesian(xlim=c(0.985,1.005), ylim=c(8,14.2))
+
+grid.arrange(g1,g2,
+             ncol = 2, 
+             top = textGrob("Relacionamentos entre açúcar residual, densidade, percentual alcoólico e qualidade",gp=gpar(fontsize=12,font=3)))
+  
+```
+
+### Descrição do Terceiro Gráfico
+O gráfico acima representa as correlações entre os atributos açúcar residual, densidade, percentual alcoólico e seus relacionamentos com a qualidade do vinho. Notas medianas e baixas possuem maior incidência em vinhos com propriedades químicas de maior açúcar residual, maior densidade e menor percentual alcoólico, ao passo que notas maiores possuem menos açúcar residual, menos densidade e maior percentual alcoólico, o que é verificado através da diferença de cores (notas de qualidade) nas amostras.
+
+------
+
+# Reflexão
+O dataset estudado possui 4898 observações de diferentes vinhos brancos. Para cada observação, foi coletada três avaliações de qualidade (variável sensorial) de diferentes especialistas de vinho. A mediana das notas (entre 0 e 10) de cada vinho foi considerada. Iniciei o estudo avaliando cada variável individualmente, verificando suas distribuições e realizando transformações quando as distribuições não apresentavam normalidade. Após, foi realizado análises bivariadas e multivariadas entre os atributos, identificando assim variações, correlações e padrões entre as segmentações de qualidade, álcool e densidade. Foi identificado interessantes relacionamentos entre os atributos e seus possíveis impactos para a qualidade de um vinho. Por fim, modelos preditivos foram desenvolvidos, três modelos para prever a nota da qualidade de vinho, um para prever a densidade e outro para o percentual alcoólico.
+
+Apesar de não haver fortes relacionamentos lineares entre as propriedades do vinho com a nota de qualidade, foi verificado fortes relacionamentos entre os atributos açúcar residual, densidade e percentual alcoólico. Quando tais relacionamentos são analisados sobre diferentes notas de qualidade, é verificado um padrão de que vinhos com boas notas possuíram uma fermentação mais completa. Ou seja, esses vinhos possuem menos açúcares residuais, os quais pode-se auferir que não foram transformados em álcool durante a fermentação, e que com isso obteve-se um maior percentual alcoólico e uma menor densidade no vinho.
+
+Os modelos lineares para prever o valor dos atributos densidade e percentual alcoólico apresentaram bons resultados, entretanto por serem atributos e sua coleta química poder ser realizada, não possuem tanto valor quanto a predição da variável de interesse qualidade.
+
+Em relação aos modelos preditivos para a variável qualidade, três modelos foram desenvolvidos. A aplicação do algorítmo SVM para um modelo de classificação obteve resultados satisfatórios, obtendo uma acurácia de 66,12%. Segmentando as notas de qualidade entre "ruins", "médias" e "boas", o modelo com SVM obteve uma acurácia de 82,20%. Entretanto, ambos modelos demonstraram fraca sensibilidade para identificar vinhos ruins. Estudos mais aprofundados podem ser aplicados para buscar melhores resultados, tal como realizados mais tratamentos no dataset eliminando outliers, aperfeiçoar a coleta de dados buscando outras propriedades do vinho, alterar o modo da coleta da variável sensorial da qualidade, refinar o modelo preditivo desenvolvido e desenvolver novos modelos aplicando outros algoritmos.
+
+
+
+
+
+
+
+
+
