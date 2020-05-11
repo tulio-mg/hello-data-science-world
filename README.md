@@ -1,2 +1,2 @@
 # hello-data-science-world
-my certificates in data science.
+my courses and certificates in data science.
