@@ -24,5 +24,18 @@ From July 2017 till now, constantly developing skills to explore the world of da
 ### Data Scientist with Python track
 ##### Organization: DataCamp
 ##### Site: https:/www.datacamp.com
-##### Credential URL: on Progress
-##### Date of conclusion: on Progress
+##### Credential URL: https://www.datacamp.com/statement-of-accomplishment/track/5ab84227825d9ead2e68653a2d568a65cdb997f6
+##### Date of conclusion: 1th of June 2021
+
+### Data Engineering with Databricks
+##### Organization: Databricks Academy
+##### Site: https://databricks.com/learn/training/home 
+##### Date of conclusion: 20th of June 2021
+
+### DP-203 - Data Engineering on Microsoft Azure
+##### Organization: Green Tech School
+##### Date of conclusion: 16th of November 2021
+
+### Optimizing Apache Spark on Databricks
+##### Organization: Databricks Academy
+##### Date of conclusion: 16th of November 2021
